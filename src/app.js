@@ -9,7 +9,7 @@ const commentRoutes = require("./routes/comment.routes");
 app.use(express.json());
 
 app.get('/', function(req,res){
-    res.send("i am destined to greatness  ")
+    res.send("i am destined to greatness")
 });
 
 app.use("/test", testRouter);
