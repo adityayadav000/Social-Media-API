@@ -30,3 +30,6 @@ jobs:
         env:
           MONGODB_TEST_URI: ${{ secrets.MONGODB_TEST_URI }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+      - name: Build Docker image
+        run: docker build -t sm-api
