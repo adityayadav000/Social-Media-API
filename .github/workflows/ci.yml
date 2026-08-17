@@ -32,4 +32,4 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Build Docker image
-        run: docker build -t sm-api
+        run: docker build -t sm-api .
