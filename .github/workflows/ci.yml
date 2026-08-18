@@ -31,5 +31,11 @@ jobs:
           MONGODB_TEST_URI: ${{ secrets.MONGODB_TEST_URI }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
+      - name: Login to Docker hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build Docker image
-        run: docker build -t sm-api .
+        run: docker build -t  princeofsaiyans/sm-api:latest .
