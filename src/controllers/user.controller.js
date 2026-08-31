@@ -2,8 +2,11 @@ const bcrypt=require("bcrypt");
 const User=require("../models/user.model");
 const jwt=require("jsonwebtoken");
 const Post = require("../models/post.model");
-
+const { redisClient } = require("../config/redis");
 async function registerUser(req,res){
+
+    console.log("REQ BODY:", req.body);
+
     try{
      const { fullName, username, email, password } = req.body;
 
@@ -159,6 +162,11 @@ async function followUser(req, res) {
             }
         );
 
+        await redisClient.sAdd(
+            `following:${currentUser._id}`,
+            userId
+        )
+
         return res.status(200).json({
             message: "User followed successfully"
         });
@@ -201,6 +209,11 @@ async function unfollowUser(req, res) {
                     followers: currentUser._id
                 }
             }
+        );
+
+        await redisClient.sRem(
+            `following:${currentUser._id}`,
+            userId
         );
 
         return res.status(200).json({
@@ -252,24 +265,43 @@ async function getFeed(req,res){
 
         const skip=(page-1)*limit;
 
+        const cacheKey=`feed:${req.user._id}:page:${page}:limit:${limit}`;
+        const cachedFeed=await redisClient.get(cacheKey); 
 
+        if(cachedFeed){
+
+            console.log("redis cache hit");
+            return res.status(200).json({
+                message: "Feed fetched successfully",
+                posts: JSON.parse(cachedFeed),
+                limit
+            })
+        }
+        console.log("redis cache miss")
         const user=await User.findById(req.user._id);
 
         const posts=await Post.find({
             owner: { $in: user.following}
         })
 
-        .populate("owner", "username fullname profilePicture")
+        .populate("owner", "username fullName profilePicture")
         .sort({ createdAt: -1})
         .skip(skip)
         .limit(limit);
 
+        await redisClient.set(
+            cacheKey,
+            JSON.stringify(posts),
+            {
+                EX: 60
+            }
+        );
 
         return res.status(200).json({
             message: "feed fetched successfully",
             posts,
             limit,
-            posts
+            
         })
     }  catch (error) {
         console.log(error);

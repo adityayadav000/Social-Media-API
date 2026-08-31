@@ -1,5 +1,7 @@
 const Post = require("../models/post.model");
-
+const { redisClient } = require("../config/redis");
+const User = require("../models/user.model");
+const postQueue = require("../queues/post.queue");
 async function createPost(req, res) {
 
     try {
@@ -16,6 +18,26 @@ async function createPost(req, res) {
             content,
             owner: req.user._id
         });
+
+        await postQueue.add("processPost",{
+            postId: post._id.toString()
+
+        });
+
+        const followers=await User.find({
+            following: req.user._id
+        }).select("_id");
+
+
+        for(const follower of followers){
+            const keys=await redisClient.keys( 
+                `feed:${follower._id}:*`
+            );
+
+            if(keys.length>0){
+                await redisClient.del(keys);
+            }
+        }
 
         return res.status(201).json({
             message: "Post created successfully",
