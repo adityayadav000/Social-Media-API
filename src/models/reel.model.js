@@ -1,5 +1,4 @@
 const mongoose =require ("mongoose");
-const { createStandardJSONSchemaMethod } = require("zod/v4/core");
 
 const reelSchema=new mongoose.Schema(
 
@@ -25,6 +24,27 @@ const reelSchema=new mongoose.Schema(
             type: Number,
             default: 0
         },
+
+        moderationStatus: {
+            type: String,
+            enum: ["pending", "approved", "hidden", "review"],
+            default: "pending"
+        },
+
+        moderationCategory: {
+    type: String,
+    default: null
+},
+
+moderationReason: {
+    type: String,
+    default: null
+},
+
+moderationConfidence: {
+    type: Number,
+    default: null
+},
 
         likes:[
             {

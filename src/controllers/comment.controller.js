@@ -1,5 +1,6 @@
 const Comment = require("../models/comment.model");
 const Post = require("../models/post.model");
+const moderationQueue = require("../queues/moderation.queue");
 
 async function createComment(req, res) {
     try {
@@ -25,6 +26,11 @@ async function createComment(req, res) {
             user: req.user._id,
             post: postId
         });
+
+        await moderationQueue.add("moderateContent", {
+            contentType: "comment",
+            contentId: comment._id.toString()
+});
 
         return res.status(201).json({
             message: "Comment created successfully",

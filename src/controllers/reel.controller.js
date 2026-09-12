@@ -3,6 +3,8 @@ const cloudinary=require("../config/cloudinary");
 const Reel = require("../models/reel.model");
 const {redisClient}=require("../config/redis");
 const User=require("../models/user.model");
+const moderationQueue = require("../queues/moderation.queue");
+
 
 async function createReel(req, res) {
     try {
@@ -26,8 +28,15 @@ async function createReel(req, res) {
         const reel=await Reel.create({
             owner: req.user._id,
             videoUrl: result.secure_url,
-            caption
-        })
+            caption,
+            moderationStatus: "pending"
+        });
+
+        await moderationQueue.add("moderateReel", {
+            contentType: "reel",
+
+            contentId: reel.id.toString()
+        });
 
         const followers = await User.find({
         following: req.user._id
@@ -45,7 +54,7 @@ async function createReel(req, res) {
 
 
         return res.status(200).json({
-            message: "Reel created successfully",
+            message: "Reel uploaded successfully and is pending moderation",
             reel
         });
 

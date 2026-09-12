@@ -1,5 +1,6 @@
 const ReelComment = require("../models/ReelComment.model");
 const Reel = require("../models/reel.model");
+const moderationQueue = require("../queues/moderation.queue");
 
 async function createComment(req, res) {
     try {
@@ -28,6 +29,10 @@ async function createComment(req, res) {
             reel: reelId
         });
 
+        await moderationQueue.add("moderateContent", {
+            contentType: "reelComment",
+            contentId: Reelcomment._id.toString()
+        });
         return res.status(201).json({
             message: "Comment created successfully",
             Reelcomment

@@ -1,5 +1,5 @@
 const multer=require("multer");
-
+const path = require("path");
 const upload=multer({
     dest: "uploads/",
 
@@ -8,6 +8,9 @@ const upload=multer({
     },
 
     fileFilter: function(req, file, cb){
+
+        console.log("FILE TYPE:", file.mimetype);
+        console.log("FILE NAME:", file.originalname);
         const allowedTypes = [
 
             "video/mp4",
@@ -15,7 +18,16 @@ const upload=multer({
             "video/quicktime"
         ];
 
-        if(allowedTypes.includes(file.mimetype)){
+         const allowedExtensions = [
+            ".mp4",
+            ".webm",
+            ".mov"
+        ];
+
+        const extension = path.extname(file.originalname).toLowerCase();
+
+
+        if(allowedTypes.includes(file.mimetype) || allowedExtensions.includes(extension)) {
             cb(null,true);
         }else{
             cb(new Error("only MP4, WebM and MOV videos are allowed"));

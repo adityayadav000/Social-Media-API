@@ -1,4 +1,5 @@
 require("dotenv").config();
+const logger = require("./config/logger");
 const app=require('./app');
 const connectDB=require("./config/db");
 const { connectRedis, redisClient } = require("./config/redis");
@@ -11,8 +12,8 @@ async function startServer(){
 
         
 
-        app.listen(PORT, function(){
-    console.log(`server is runnning on port  ${PORT}`);
+       app.listen(PORT, "0.0.0.0", function() {
+    logger.info(`Server is running on port ${PORT}`);
 });
     }catch(error){
         console.error("failed to start server:", error.message);

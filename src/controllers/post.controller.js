@@ -2,6 +2,7 @@ const Post = require("../models/post.model");
 const { redisClient } = require("../config/redis");
 const User = require("../models/user.model");
 const postQueue = require("../queues/post.queue");
+const moderationQueue = require("../queues/moderation.queue");
 async function createPost(req, res) {
 
     try {
@@ -18,6 +19,11 @@ async function createPost(req, res) {
             content,
             owner: req.user._id
         });
+
+        await moderationQueue.add("moderateContent", {
+            contentType: "post",
+            contentId: post._id.toString()
+});
 
         await postQueue.add("processPost",{
             postId: post._id.toString()

@@ -18,7 +18,28 @@ const commentSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "Reel",
             required: true
-        }
+        },
+
+        moderationStatus: {
+    type: String,
+    enum: ["pending", "approved", "hidden", "review"],
+    default: "pending"
+},
+
+moderationCategory: {
+    type: String,
+    default: null
+},
+
+moderationReason: {
+    type: String,
+    default: null
+},
+
+moderationConfidence: {
+    type: Number,
+    default: null
+},
     },
     {
         timestamps: true
