@@ -1,10 +1,11 @@
 const { Queue } = require("bullmq");
-const redisClient = require("../config/redis");
 
-
+const connection = {
+    url: process.env.REDIS_URL
+};
 
 const moderationQueue=new Queue("moderation", {
-    connection: redisClient,
+    connection,
 
     defaultJobOptions: {
         attempts: 3,

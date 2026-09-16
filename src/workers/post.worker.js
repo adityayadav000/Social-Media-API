@@ -3,8 +3,13 @@ require("dotenv").config();
 const {Worker}= require("bullmq");
 const Post = require("../models/post.model");
 const connectDB = require("../config/db");
-
+const { redisClient } = require("../config/redis");
 connectDB();
+
+const connection = {
+    url: process.env.REDIS_URL
+};
+
 const worker=new Worker(
     "post-queue",
 
@@ -17,10 +22,7 @@ const worker=new Worker(
     },
     {
 
-        connection: {
-            host: "localhost",
-            port: 6379
-        }
+        connection
     }
 )
 

@@ -7,8 +7,11 @@ const PORT=process.env.PORT || 3000;
 async function startServer(){
 
     try{
+        logger.info("Connecting to DB...");
         await connectDB();
+        logger.info("DB connected. Connecting to Redis...");
         await connectRedis();
+        logger.info("Redis connected. Starting server...");
 
         
 

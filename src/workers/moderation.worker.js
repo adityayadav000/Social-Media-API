@@ -15,6 +15,10 @@ const {
 
 connectDB();
 
+const connection = {
+    url: process.env.REDIS_URL
+};
+
 const moderationWorker=new Worker(
     "moderation",
 
@@ -79,7 +83,7 @@ await updateModerationStatus(
      
     },
     {
-        connection: redisClient
+        connection
     }
 );
 

@@ -3,3 +3,7 @@ node_modules/
 *.log
 uploads/
 *.zip
+Terraform/.terraform/
+Terraform/*.tfstate
+Terraform/*.tfstate.*
+*.tfvars
