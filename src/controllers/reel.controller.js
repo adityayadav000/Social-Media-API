@@ -4,9 +4,12 @@ const Reel = require("../models/reel.model");
 const {redisClient}=require("../config/redis");
 const User=require("../models/user.model");
 const moderationQueue = require("../queues/moderation.queue");
+const logger = require("../config/logger");
 
 
 async function createReel(req, res) {
+    let stage = "request validation";
+
     try {
        const { caption }=req.body;
 
@@ -17,6 +20,7 @@ async function createReel(req, res) {
        }
     
 
+        stage = "Cloudinary video upload";
         const result=await cloudinary.uploader.upload(
             req.file.path,
             {
@@ -25,6 +29,7 @@ async function createReel(req, res) {
             }
         );
         
+        stage = "MongoDB reel creation";
         const reel=await Reel.create({
             owner: req.user._id,
             videoUrl: result.secure_url,
@@ -32,12 +37,14 @@ async function createReel(req, res) {
             moderationStatus: "pending"
         });
 
+        stage = "moderation queue";
         await moderationQueue.add("moderateReel", {
             contentType: "reel",
 
             contentId: reel.id.toString()
         });
 
+        stage = "feed cache invalidation";
         const followers = await User.find({
         following: req.user._id
         }).select("_id");
@@ -59,10 +66,18 @@ async function createReel(req, res) {
         });
 
     } catch (error) {
-        console.log(error);
+        logger.error("Create reel failed", {
+            method: req.method,
+            url: req.originalUrl,
+            stage,
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+        });
 
         return res.status(500).json({
-            message: "Something went wrong"
+            message: "Something went wrong while creating the reel",
+            stage
         });
     }
 }
