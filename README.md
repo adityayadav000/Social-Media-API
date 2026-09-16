@@ -1,605 +1,339 @@
 # Social Media API
 
-A production-oriented RESTful backend for a social media platform built with **Node.js, Express, MongoDB, Redis, BullMQ, Docker, and GitHub Actions**.
-
-The project focuses on backend engineering concepts such as authentication, authorization, media handling, caching, asynchronous job processing, rate limiting, pagination, validation, testing, and CI automation.
-
-> **Project status:** Backend core + Reels implementation completed.
-> **In progress:** Agentic AI content moderation and production deployment.
-
----
-
-## 🚀 Features
-
-### 🔐 Authentication & Authorization
-
-* User registration and login
-* Password hashing with `bcrypt`
-* JWT-based authentication
-* Protected routes
-* Authorization based on resource ownership
-* Secure authentication middleware
-* Environment-based secret management
-
-### 👤 User Management
-
-* User profile management
-* Follow / unfollow functionality
-* Follower and following relationships
-* User-specific authorization
-
-### 📝 Posts
-
-* Create posts
-* Retrieve posts
-* Update posts
-* Delete posts
-* Owner-based authorization
-* Feed generation based on followed users
-* Pagination for feed retrieval
-* MongoDB population for related user data
-
-### 🎬 Reels
-
-* Create reels
-* Upload video media
-* Cloudinary-based media storage
-* Retrieve reels
-* Reel interactions
-* Reel comments
-* Protected reel operations
-* Media upload middleware
-
-### ⚡ Redis
-
-Redis is used as an infrastructure component for:
-
-* Feed caching
-* Cache invalidation
-* Login rate limiting
-* Temporary data with TTL
-* Reducing repeated database queries
-
-The feed cache is invalidated when relevant social graph/content changes occur.
-
-### 🔄 Background Job Processing
-
-The application uses **BullMQ + Redis** for asynchronous processing.
-
-Current architecture includes:
-
-* Post processing queue
-* Background worker
-* Job-based processing
-* Redis-backed queue infrastructure
-
-This allows expensive or asynchronous operations to be separated from the main HTTP request lifecycle.
-
-### 🛡️ Rate Limiting
-
-Redis-backed rate limiting is implemented to protect sensitive endpoints such as login from excessive requests.
-
-Example behavior:
-
-```text
-Request
-   ↓
-Rate Limiter
-   ↓
-Redis counter
-   ↓
-Allowed → Controller
-Blocked → 429 Too Many Requests
-```
-
-### ✅ Validation & Error Handling
-
-* Request validation using `express-validator`
-* Schema validation using `Zod`
-* Centralized application error handling
-* HTTP status code based responses
-* Validation of incoming request data
-
-### 🧪 Testing
-
-The project includes automated backend tests using:
-
-* Jest
-* Supertest
-
-Testing is used to verify API behavior without relying only on manual Postman testing.
-
-### 🐳 Docker
-
-The application is containerized using Docker.
-
-Docker is used to provide a consistent runtime environment and make the backend easier to deploy.
-
-### 🔁 CI with GitHub Actions
-
-A GitHub Actions workflow is included for continuous integration.
-
-Current CI setup is used to automatically validate changes pushed to the repository.
-
----
-
-# 🏗️ Architecture
-
-The backend follows a modular layered architecture:
-
-```text
-                    Client
-                      │
-                      ▼
-               Express REST API
-                      │
-          ┌───────────┴───────────┐
-          │                       │
-          ▼                       ▼
-   Authentication            Validation
-      Middleware             Middleware
-          │                       │
-          └───────────┬───────────┘
-                      ▼
-                 Controllers
-                      │
-                      ▼
-                  MongoDB
-                      │
-          ┌───────────┴───────────┐
-          │                       │
-          ▼                       ▼
-       Redis                 Cloudinary
-   Cache / Rate Limit       Media Storage
-          │
-          ▼
-       BullMQ
-          │
-          ▼
-      Background
-       Workers
-```
-
-The project separates application concerns into:
-
-```text
-src/
-├── config/
-├── controllers/
-├── middleware/
-├── models/
-├── queues/
-├── routes/
-├── workers/
-├── app.js
-└── server.js
-```
-
-This structure keeps routing, business logic, database models, middleware, queues, and workers separated instead of putting the entire application into a few large files.
-
----
-
-# 🧰 Tech Stack
-
-| Technology        | Purpose                   |
-| ----------------- | ------------------------- |
-| Node.js           | Runtime                   |
-| Express.js        | REST API framework        |
-| MongoDB           | Primary database          |
-| Mongoose          | MongoDB ODM               |
-| JWT               | Authentication            |
-| bcrypt            | Password hashing          |
-| Redis             | Caching & rate limiting   |
-| BullMQ            | Background job processing |
-| Cloudinary        | Media storage             |
-| Multer            | File upload handling      |
-| Zod               | Schema validation         |
-| express-validator | Request validation        |
-| Jest              | Testing                   |
-| Supertest         | API integration testing   |
-| Docker            | Containerization          |
-| GitHub Actions    | CI automation             |
-
-The current `package.json` confirms the core dependencies including Express, Mongoose, Redis, BullMQ, Cloudinary, JWT, bcrypt, Multer, Jest, and Supertest.
-
----
-
-# 🔑 Authentication Flow
-
-```text
-User
- │
- ├── Register
- │      │
- │      ▼
- │   Validate input
- │      │
- │      ▼
- │   Hash password
- │      │
- │      ▼
- │   Store user
- │
- └── Login
-        │
-        ▼
-   Validate credentials
-        │
-        ▼
-    Generate JWT
-        │
-        ▼
-      Client
-        │
-        ▼
- Authorization: Bearer <token>
-        │
-        ▼
-    JWT Middleware
-        │
-        ▼
-    Protected Route
-```
-
-Passwords are hashed before being stored, and authenticated requests are authorized through JWT middleware.
-
----
-
-# ⚡ Redis Caching
-
-The feed system uses Redis caching to reduce repeated database queries.
-
-```text
-GET /feed
-     │
-     ▼
-Check Redis
-     │
- ┌───┴────┐
- │        │
-Hit      Miss
- │        │
- ▼        ▼
-Return   MongoDB
-cache    query
-          │
-          ▼
-       Store in
-        Redis
-          │
-          ▼
-       Response
-```
-
-Cache invalidation is performed when changes to posts or social relationships can make an existing cached feed stale.
-
----
-
-# 🔄 Background Processing with BullMQ
-
-The application uses a Redis-backed BullMQ queue to process background jobs.
-
-```text
-API Request
-     │
-     ▼
-Create Post
-     │
-     ▼
-MongoDB
-     │
-     ▼
-Add Job to BullMQ
-     │
-     ▼
-Return API Response
-     
-          │
-          ▼
-     BullMQ Worker
-          │
-          ▼
-   Background Processing
-```
-
-This architecture provides a foundation for adding additional asynchronous processing without blocking the API request.
-
----
-
-# 🎬 Media Upload Architecture
-
-Reel videos are handled separately from the application server's permanent storage.
+Production-oriented REST API for a social media platform with authentication, posts, comments, follows, personalized feeds, video reels, Cloudinary media storage, Redis caching, BullMQ jobs, AI-assisted moderation, Docker, Terraform, and GitHub Actions.
+
+## Live API
+
+| Resource | URL |
+| --- | --- |
+| API base URL | <https://social-media-api-8p9u.onrender.com> |
+| Health check | <https://social-media-api-8p9u.onrender.com/health> |
+| Swagger UI | <https://social-media-api-8p9u.onrender.com/api-docs> |
+| Prometheus metrics | <https://social-media-api-8p9u.onrender.com/metrics> |
+
+The deployed service currently runs on Render's free plan from the Docker image `princeofsaiyans/sm-api:latest`. Free instances may sleep when idle.
+
+## What It Provides
+
+- JWT authentication with bcrypt password hashing
+- User profiles, search, follow and unfollow operations
+- Posts with ownership checks, editing, deletion, likes, and comments
+- Personalized post and reel feeds with pagination
+- Video reel uploads through Multer and Cloudinary
+- Reel likes, views, comments, and moderation status
+- Redis-backed login rate limiting, caching, feed invalidation, and view deduplication
+- BullMQ background jobs for post processing and content moderation
+- AI moderation for posts, comments, reel captions, and reel comments
+- Structured logging with Winston and request metrics with Prometheus
+- Swagger/OpenAPI documentation at `/api-docs`
+- Jest and Supertest integration tests
+- Docker image publishing through GitHub Actions
+- Render deployment managed with Terraform
+
+## Technology
+
+| Layer | Technology |
+| --- | --- |
+| Runtime | Node.js 22 |
+| HTTP API | Express 5 |
+| Database | MongoDB with Mongoose |
+| Cache and queues | Redis and BullMQ |
+| Authentication | JWT and bcrypt |
+| Media | Multer and Cloudinary |
+| Moderation | Google Gemini/OpenAI integrations |
+| Documentation | Swagger UI and OpenAPI |
+| Observability | Winston and prom-client |
+| Testing | Jest and Supertest |
+| Delivery | Docker, GitHub Actions, Render, Terraform |
+
+## Architecture
 
 ```text
 Client
-  │
-  ▼
+  |
+  v
 Express API
-  │
-  ▼
-Multer
-  │
-  ▼
-Cloudinary
-  │
-  ▼
-Media URL
-  │
-  ▼
-MongoDB
+  |
+  +--> JWT middleware --> Controllers --> MongoDB
+  |
+  +--> Redis cache, rate limiting, and view tracking
+  |
+  +--> Cloudinary video storage
+  |
+  +--> BullMQ moderation/post queues --> Background workers --> AI moderation
 ```
 
-The database stores the relevant media information while Cloudinary handles the actual media storage.
+The API process handles request/response work. Expensive or asynchronous work is sent to Redis-backed BullMQ queues so moderation and post processing do not block the main request path.
 
----
+## API Reference
 
-# 🛡️ Rate Limiting Architecture
+Protected endpoints require:
 
-Redis is used to track request attempts.
-
-```text
-Login Request
-     │
-     ▼
-Rate Limiter
-     │
-     ▼
-Redis
-     │
-     ├── Within limit → Continue
-     │
-     └── Limit exceeded → 429
+```http
+Authorization: Bearer <jwt-token>
 ```
 
-This protects authentication endpoints from excessive repeated requests.
+### System
 
----
+| Method | Endpoint | Auth | Purpose |
+| --- | --- | --- | --- |
+| GET | `/` | No | Basic service response |
+| GET | `/health` | No | Health check |
+| GET | `/api-docs` | No | Swagger UI |
+| GET | `/metrics` | No | Prometheus metrics |
 
-# 🧪 Testing
+### Authentication and users
 
-The project uses:
+| Method | Endpoint | Auth | Purpose |
+| --- | --- | --- | --- |
+| POST | `/users/register` | No | Register with `fullName`, `username`, `email`, and `password` |
+| POST | `/users/login` | No | Login with `email` and `password`; returns a one-day JWT |
+| GET | `/users/profile` | Yes | Get the authenticated user's profile |
+| GET | `/users/:userId/profile` | No | Get a user's profile |
+| GET | `/users/search?username=<value>` | No | Search users by username |
+| GET | `/users/feed?page=1&limit=10` | Yes | Get the authenticated user's post feed |
+| POST | `/users/:userId/follow` | Yes | Follow a user |
+| DELETE | `/users/:userId/follow` | Yes | Unfollow a user |
 
-```text
-Jest
-   +
-Supertest
-```
+### Posts and comments
 
-This allows API endpoints to be tested programmatically and helps verify backend behavior without depending exclusively on manual API testing.
+| Method | Endpoint | Auth | Purpose |
+| --- | --- | --- | --- |
+| POST | `/posts/create` | Yes | Create a post with `content` |
+| GET | `/posts` | No | List posts |
+| GET | `/posts/:postId` | No | Get one post |
+| PUT | `/posts/:postId` | Yes | Update an owned post with `content` |
+| DELETE | `/posts/:postId` | Yes | Delete an owned post |
+| POST | `/posts/:postId/like` | Yes | Like a post |
+| DELETE | `/posts/:postId/like` | Yes | Unlike a post |
+| POST | `/posts/:postId/comments` | Yes | Add a comment with `content` |
+| GET | `/posts/:postId/comments` | No | List post comments |
+| DELETE | `/posts/comments/:commentId` | Yes | Delete an owned comment |
 
-Run tests with:
+### Reels
 
-```bash
-npm test
-```
+Reel uploads use `multipart/form-data` with a file field named `video`. MP4, WebM, and MOV files are accepted up to 100 MB.
 
----
+| Method | Endpoint | Auth | Purpose |
+| --- | --- | --- | --- |
+| POST | `/api/reels` | Yes | Upload a reel with `video` and optional `caption` |
+| GET | `/api/reels` | No | List reels with optional `page` and `limit` |
+| GET | `/api/reels/feed` | Yes | Get the personalized reel feed |
+| POST | `/api/reels/:reelId/like` | Yes | Like a reel |
+| POST | `/api/reels/:reelId/unlike` | Yes | Unlike a reel |
+| POST | `/api/reels/:reelId/view` | Yes | Count a reel view once per user per day |
+| POST | `/api/reels/:reelId/comment` | Yes | Add a reel comment with `content` |
+| GET | `/api/reels/:reelId/comments` | Yes | List reel comments |
+| DELETE | `/api/reels/comments/:commentId` | Yes | Delete an owned reel comment |
 
-# 🐳 Running with Docker
+## Quick Start
 
-Build the image:
+### Requirements
 
-```bash
-docker build -t sm-api .
-```
+- Node.js 22 or later
+- MongoDB database
+- Redis instance with a connection URL
+- Cloudinary account for reel uploads
+- AI provider credentials when running moderation workers
 
-Run the container:
-
-```bash
-docker run -p 3000:3000 sm-api
-```
-
-Production environment variables should be supplied securely rather than hard-coded into the image.
-
----
-
-# 💻 Local Development
-
-### 1. Clone the repository
+### Install
 
 ```bash
 git clone https://github.com/adityayadav000/Social-Media-API.git
 cd Social-Media-API
+npm ci
 ```
 
-### 2. Install dependencies
+### Configure environment
 
-```bash
-npm install
+Create a local `.env` file. Never commit it.
+
+```env
+PORT=3000
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/<database>
+REDIS_URL=redis://:<password>@<host>:<port>
+JWT_SECRET=replace-with-a-long-random-secret
+CLOUDINARY_CLOUD_NAME=<cloudinary-cloud-name>
+CLOUDINARY_API_KEY=<cloudinary-api-key>
+CLOUDINARY_API_SECRET=<cloudinary-api-secret>
 ```
 
-### 3. Configure environment variables
+The API requires both `MONGODB_URI` and `REDIS_URL` during startup. Cloudinary variables are required for reel uploads. AI moderation configuration is read by the moderation service and should be supplied through the provider-specific environment variables used there.
 
-Create a `.env` file containing the required configuration for:
-
-```text
-PORT
-MONGODB_URI
-JWT_SECRET
-REDIS_URL
-CLOUDINARY credentials
-```
-
-Do **not** commit `.env` to Git.
-
-### 4. Start the development server
+### Run locally
 
 ```bash
 npm run dev
 ```
 
-The production start command is:
+Production-style start:
 
 ```bash
 npm start
 ```
 
----
+The server listens on `http://localhost:3000` by default. Open <http://localhost:3000/api-docs> for interactive API documentation.
 
-# 📁 Project Structure
+## Example Flow
 
-```text
-Social-Media-API/
-│
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-│
-├── src/
-│   ├── config/
-│   │   ├── cloudinary.js
-│   │   └── redis.js
-│   │
-│   ├── controllers/
-│   │   ├── post.controller.js
-│   │   ├── reel.controller.js
-│   │   ├── ReelComment.controller.js
-│   │   └── user.controller.js
-│   │
-│   ├── middleware/
-│   │   ├── rateLimiter.js
-│   │   └── upload.middleware.js
-│   │
-│   ├── models/
-│   │   ├── reel.model.js
-│   │   └── ReelComment.model.js
-│   │
-│   ├── queues/
-│   │   └── post.queue.js
-│   │
-│   ├── routes/
-│   │   ├── reels.routes.js
-│   │   ├── Reelcomment.routes.js
-│   │   └── user.routes.js
-│   │
-│   ├── workers/
-│   │   └── post.worker.js
-│   │
-│   ├── app.js
-│   └── server.js
-│
-├── tests/
-│
-├── .dockerignore
-├── .gitignore
-├── Dockerfile
-├── package.json
-└── package-lock.json
+Register:
+
+```bash
+curl -X POST http://localhost:3000/users/register \
+  -H "Content-Type: application/json" \
+  -d '{"fullName":"Ada Lovelace","username":"ada","email":"ada@example.com","password":"strong-password"}'
 ```
 
-The current repository reflects this modular `src` structure and also contains separate test, Docker, and GitHub Actions configuration.
+Login and copy the returned `token`:
 
----
-
-# 🚧 Upcoming Improvements
-
-The project is still under active development.
-
-### 🤖 Agentic AI Content Moderation
-
-Planned architecture:
-
-```text
-New Post / Reel
-      │
-      ▼
-BullMQ Queue
-      │
-      ▼
-AI Moderation Agent
-      │
-      ├── Safe
-      │
-      ├── Flagged
-      │
-      └── Requires Further Analysis
-      │
-      ▼
-Update Content Status
+```bash
+curl -X POST http://localhost:3000/users/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com","password":"strong-password"}'
 ```
 
-The goal is to integrate AI moderation into the existing asynchronous architecture instead of making AI inference block the main API request.
+Create an authenticated post:
 
-### ☁️ Production Deployment
-
-Planned deployment work includes:
-
-* Production cloud deployment
-* Production MongoDB configuration
-* Production Redis configuration
-* Docker-based deployment
-* Secure environment/secrets management
-* CI/CD deployment pipeline
-* Production monitoring and logging
-
----
-
-# 🗺️ Development Roadmap
-
-```text
-[x] REST API foundation
-[x] Authentication & Authorization
-[x] User management
-[x] Posts
-[x] Follow / Unfollow
-[x] Feed + Pagination
-[x] Redis caching
-[x] Redis rate limiting
-[x] BullMQ background jobs
-[x] Reel functionality
-[x] Reel comments
-[x] Cloudinary media storage
-[x] Docker
-[x] GitHub Actions CI
-[x] Automated API testing
-[ ] Agentic AI content moderation
-[ ] Production deployment
-[ ] Production monitoring
+```bash
+curl -X POST http://localhost:3000/posts/create \
+  -H "Authorization: Bearer <jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Hello from the Social Media API"}'
 ```
 
----
+Upload a reel:
 
-# 🎯 Project Goals
+```bash
+curl -X POST http://localhost:3000/api/reels \
+  -H "Authorization: Bearer <jwt-token>" \
+  -F "video=@./sample.mp4" \
+  -F "caption=My first reel"
+```
 
-This project is being developed beyond a basic CRUD application.
+## Background Processing and Moderation
 
-The main engineering goals are:
+Posts, comments, reel captions, and reel comments are submitted to the moderation queue. The moderation worker retrieves the content, calls the configured AI moderation service, stores the category, confidence, and reason, and updates the moderation decision.
 
-* Build a modular REST API
-* Implement secure authentication and authorization
-* Handle media uploads
-* Improve API performance using caching
-* Introduce asynchronous processing
-* Protect APIs using rate limiting
-* Automate testing and CI
-* Containerize the application
-* Integrate AI into a real backend workflow
-* Deploy the system to a production cloud environment
+Run workers in separate processes when deploying them independently:
 
----
+```bash
+node src/workers/post.worker.js
+node src/workers/moderation.worker.js
+```
 
-# 📌 Current Status
+Workers require access to the same MongoDB and Redis services as the API. The exact AI provider configuration should remain in deployment secrets, never in source control.
 
-**Backend:** 🟢 Core functionality implemented
+## Docker
 
-**Reels:** 🟢 Implemented
+Build and run the API container:
 
-**Redis:** 🟢 Implemented
+```bash
+docker build -t sm-api .
+docker run --env-file .env -p 3000:3000 sm-api
+```
 
-**BullMQ:** 🟢 Implemented
+The image is based on Node.js 22 Alpine, exposes port `3000`, and starts with `npm start`.
 
-**Docker:** 🟢 Implemented
+## Deployment
 
-**CI:** 🟢 Implemented
+### Render
 
-**Testing:** 🟢 Implemented
+The live service is deployed on Render from `docker.io/princeofsaiyans/sm-api:latest`:
 
-**Agentic AI moderation:** 🟡 Planned
+<https://social-media-api-8p9u.onrender.com>
 
-**Production deployment:** 🟡 Planned
+Configure these Render environment variables as secrets:
 
----
+```text
+MONGODB_URI
+REDIS_URL
+JWT_SECRET
+CLOUDINARY_CLOUD_NAME
+CLOUDINARY_API_KEY
+CLOUDINARY_API_SECRET
+```
+
+Keep the application port compatible with Render's `PORT` environment variable. The server binds to `0.0.0.0` and defaults to port `3000` locally.
+
+### Terraform
+
+Terraform configuration is in the `Terraform/` directory and uses the Render provider.
+
+```bash
+cd Terraform
+terraform init
+terraform plan \
+  -var="mongodb_uri=$MONGODB_URI" \
+  -var="jwt_secret=$JWT_SECRET" \
+  -var="cloudinary_cloud_name=$CLOUDINARY_CLOUD_NAME" \
+  -var="cloudinary_api_key=$CLOUDINARY_API_KEY" \
+  -var="cloudinary_api_secret=$CLOUDINARY_API_SECRET"
+terraform apply
+```
+
+Do not commit `terraform.tfstate` or pass real credentials in shell history. Use a remote encrypted state backend and CI-managed secret variables for production Terraform runs.
+
+## Testing and CI
+
+Run the test suite:
+
+```bash
+npm test
+```
+
+The GitHub Actions workflow runs on pushes and pull requests targeting `main`. It installs dependencies with `npm ci`, runs Jest with the test MongoDB secret, builds the Docker image, logs in to Docker Hub, and pushes `princeofsaiyans/sm-api:latest`.
+
+Required GitHub Actions secrets include:
+
+```text
+MONGODB_TEST_URI
+JWT_SECRET
+DOCKERHUB_USERNAME
+DOCKER_TOKEN
+```
+
+## Project Structure
+
+```text
+src/
+├── config/         Database, Redis, Cloudinary, logging, metrics, Swagger
+├── controllers/    HTTP request handlers
+├── middleware/     JWT auth, rate limiting, uploads
+├── models/         Mongoose schemas
+├── queues/         BullMQ queue definitions
+├── routes/         Express route modules
+├── services/       Moderation and AI services
+├── validators/     Request validation utilities
+├── workers/        Background job processors
+├── app.js          Express application and route registration
+└── server.js       Startup, database/Redis connections, and listener
+
+tests/              Jest and Supertest integration tests
+Terraform/          Render infrastructure configuration
+Dockerfile          Production container definition
+prometheus.yml      Prometheus scrape configuration
+```
+
+## Security Notes
+
+- Use a unique, high-entropy `JWT_SECRET` in every environment.
+- Keep MongoDB, Redis, Cloudinary, and AI credentials in a secret manager or deployment secret store.
+- Restrict MongoDB network access and Redis authentication in production.
+- Do not commit `.env`, Terraform state, credentials, or uploaded media.
+- Rotate any credential that has been exposed through logs, state files, screenshots, or source control.
+
+## Roadmap
+
+- Harden production secret and Terraform state management
+- Add explicit worker deployment and process supervision
+- Add richer moderation review workflows and audit history
+- Add broader API contract and end-to-end coverage
+- Add production dashboards, alerting, and service-level health checks
+
+## License
+
+This project currently uses the `ISC` license declared in `package.json`.
 
 ## Repository
 
-[GitHub Repository — Social Media API](https://github.com/adityayadav000/Social-Media-API?utm_source=chatgpt.com)
+<https://github.com/adityayadav000/Social-Media-API>
